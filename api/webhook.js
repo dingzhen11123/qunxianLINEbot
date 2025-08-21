@@ -50,7 +50,7 @@ export default async function handler(req, res) {
 
           // 呼叫 grok-4 模型
           const completion = await openai.chat.completions.create({
-            model: "grok-4",
+            model: "gemini-2.5-flash",
             messages: messages,
           });
 
