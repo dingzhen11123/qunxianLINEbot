@@ -1,4 +1,4 @@
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 import { Client } from "@line/bot-sdk";
 
 // LINE client
@@ -6,44 +6,45 @@ const lineClient = new Client({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
 
-// OpenAI client (通过 DMX API 中转)
-const openai = new OpenAIApi(
-  new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
-    basePath: process.env.OPENAI_BASE_URL, // 这里就是 https://www.dmxapi.cn/v1/
-  })
-);
+// OpenAI client (走代理)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
+});
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
     try {
       const events = req.body.events;
-
       for (const event of events) {
         if (event.type === "message" && event.message.type === "text") {
           const userMessage = event.message.text;
 
-          // 构造对话 prompt
+          // 隨機選擇稱呼
+          const names = ["峮嫻", "嫻嫻", "寶寶"];
+          const randomName = names[Math.floor(Math.random() * names.length)];
+
+          // 構造對話 prompt
           const messages = [
             {
               role: "system",
               content:
-                "你是一位温柔的AI助手。无论用户说什么，你都要用可爱的语气回复，并且称呼用户为『峮嫻』『嫻嫻』或者『寶寶』。回答要简短温柔，带点撒娇。",
+                `你是一位溫柔可愛的AI助手，說話帶點撒嬌的語氣。每次回覆都要稱呼用戶為『${randomName}』。`,
             },
             { role: "user", content: userMessage },
           ];
 
-          // 调用 grok-4
-          const completion = await openai.createChatCompletion({
+          // 呼叫 grok-4 模型
+          const completion = await openai.chat.completions.create({
             model: "grok-4",
-            messages,
+            messages: messages,
           });
 
           const aiReply =
-            completion.data.choices[0].message?.content ||
-            "寶寶，我有點卡住了呢～";
+            completion.choices[0]?.message?.content ||
+            "寶寶，我好像有點卡住了呢～";
 
-          // 回复 LINE
+          // 回覆給 LINE 用戶
           await lineClient.replyMessage(event.replyToken, {
             type: "text",
             text: aiReply,
@@ -54,7 +55,7 @@ export default async function handler(req, res) {
       res.status(200).send("OK");
     } catch (error) {
       console.error("Webhook Error:", error);
-      res.status(500).send("Error");
+      res.status(500).send("Internal Server Error");
     }
   } else {
     res.status(405).send("Method Not Allowed");
