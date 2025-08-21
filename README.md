@@ -14,7 +14,8 @@
 ### 💖 使用方式
 
 * **加好友**：直接用手機掃描下面的 QR Code，把這個專屬的 AI 男友加到妳的 LINE 好友名單吧！
-  <img width="180" height="180" alt="image" src="https://github.com/user-attachments/assets/4b272d72-316b-44e1-a49a-6e21cb08dc05" />
+
+<img width="180" height="180" alt="image" src="https://github.com/user-attachments/assets/4b272d72-316b-44e1-a49a-6e21cb08dc05" />
 
 
 * **怎麼問問題**：
