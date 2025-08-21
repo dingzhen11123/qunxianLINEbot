@@ -1,5 +1,18 @@
-import fetch from "node-fetch";
+import { OpenAI } from "openai";
+import { Client } from "@line/bot-sdk";
 
+// 初始化 LINE 客户端
+const lineClient = new Client({
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+});
+
+// 初始化 OpenAI 客户端（走代理）
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL || "https://www.dmxapi.cn/v1/",
+});
+
+// Vercel 的入口
 export default async function handler(req, res) {
   if (req.method === "POST") {
     const events = req.body.events;
@@ -8,37 +21,33 @@ export default async function handler(req, res) {
       if (event.type === "message" && event.message.type === "text") {
         const userMessage = event.message.text;
 
-        // 调用 OpenAI
-        const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: "gpt-5-mini",   // 你也可以换成 gpt-4o-mini 之类的
-            messages: [{ role: "user", content: userMessage }]
-          })
-        });
-        const gptData = await gptRes.json();
-        const replyText = gptData.choices[0].message.content;
+        try {
+          // 调用第三方 API (模型 grok-4)
+          const response = await openai.chat.completions.create({
+            model: "grok-4",  // 指定模型
+            messages: [{ role: "user", content: userMessage }],
+          });
 
-        // 回复 LINE
-        await fetch("https://api.line.me/v2/bot/message/reply", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
-          },
-          body: JSON.stringify({
-            replyToken: event.replyToken,
-            messages: [{ type: "text", text: replyText }]
-          })
-        });
+          const replyText =
+            response.choices[0]?.message?.content || "（出错了，稍后再试吧）";
+
+          // 回复给 LINE 用户
+          await lineClient.replyMessage(event.replyToken, {
+            type: "text",
+            text: replyText,
+          });
+        } catch (error) {
+          console.error("OpenAI API 出错:", error);
+          await lineClient.replyMessage(event.replyToken, {
+            type: "text",
+            text: "抱歉，AI 出了一点问题 😢",
+          });
+        }
       }
     }
-    res.status(200).json({ ok: true });
+
+    res.status(200).send("OK");
   } else {
-    res.status(405).json({ error: "Method not allowed" });
+    res.status(405).send("Method Not Allowed");
   }
 }
